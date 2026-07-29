@@ -97,10 +97,15 @@ export function SubjectCard({ subject, onChange, onRemove }: Props) {
 
   const allTeoricos = subject.catedras.flatMap((c) => c.parsed?.teoricos ?? []);
 
-  function setTeoricoPriority(identifier: string, priority: "fundamental" | "low") {
+  const subjectTeoricoPriority: "fundamental" | "low" =
+    allTeoricos.length > 0 && allTeoricos.every((t) => subject.teoricoPriorities[t.identifier] === "low")
+      ? "low"
+      : "fundamental";
+
+  function setSubjectTeoricoPriority(priority: "fundamental" | "low") {
     onChange({
       ...subject,
-      teoricoPriorities: { ...subject.teoricoPriorities, [identifier]: priority },
+      teoricoPriorities: Object.fromEntries(allTeoricos.map((t) => [t.identifier, priority])),
     });
   }
 
@@ -213,30 +218,31 @@ export function SubjectCard({ subject, onChange, onRemove }: Props) {
       {allTeoricos.length > 0 && (
         <div className="mt-3">
           <p className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
-            Prioridad por teórico
+            Prioridad de los teóricos de esta materia
           </p>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {allTeoricos.map((t) => {
-              const priority = subject.teoricoPriorities[t.identifier] ?? "fundamental";
-              return (
-                <div
-                  key={t.id}
-                  className="flex items-center gap-1 rounded border border-neutral-200 px-2 py-1 text-xs dark:border-neutral-700"
-                >
-                  <span className="font-medium">{t.identifier}</span>
-                  <select
-                    value={priority}
-                    onChange={(e) =>
-                      setTeoricoPriority(t.identifier, e.target.value as "fundamental" | "low")
-                    }
-                    className="rounded border border-neutral-300 bg-transparent text-xs dark:border-neutral-600"
-                  >
-                    <option value="fundamental">Fundamental</option>
-                    <option value="low">Prioridad baja (a evaluar)</option>
-                  </select>
-                </div>
-              );
-            })}
+          <div className="mt-1 inline-flex overflow-hidden rounded border border-neutral-300 text-xs dark:border-neutral-600">
+            <button
+              type="button"
+              onClick={() => setSubjectTeoricoPriority("fundamental")}
+              className={`px-3 py-1.5 ${
+                subjectTeoricoPriority === "fundamental"
+                  ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                  : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              }`}
+            >
+              Teórico fundamental
+            </button>
+            <button
+              type="button"
+              onClick={() => setSubjectTeoricoPriority("low")}
+              className={`border-l border-neutral-300 px-3 py-1.5 dark:border-neutral-600 ${
+                subjectTeoricoPriority === "low"
+                  ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                  : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              }`}
+            >
+              Prioridad baja (a evaluar)
+            </button>
           </div>
         </div>
       )}
