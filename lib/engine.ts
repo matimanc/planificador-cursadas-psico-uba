@@ -1,4 +1,5 @@
 import {
+  BlockedSlot,
   Criteria,
   GenerationResult,
   Plan,
@@ -21,13 +22,31 @@ function timeToMinutes(t: string): number {
   return h * 60 + m;
 }
 
-function blocksOverlap(a: ScheduleBlock, b: ScheduleBlock): boolean {
+interface TimedBlock {
+  day: string;
+  start: string;
+  end: string;
+}
+
+function blocksOverlap(a: TimedBlock, b: TimedBlock): boolean {
   if (a.day !== b.day) return false;
   const aStart = timeToMinutes(a.start);
   const aEnd = timeToMinutes(a.end);
   const bStart = timeToMinutes(b.start);
   const bEnd = timeToMinutes(b.end);
   return aStart < bEnd && bStart < aEnd;
+}
+
+function applyAllowedDays(options: SubjectOption[], allowedDays: string[] | null): SubjectOption[] {
+  if (!allowedDays || allowedDays.length === 0) return options;
+  return options.filter((opt) => opt.requiredBlocks.every((b) => allowedDays.includes(b.day)));
+}
+
+function applyBlockedSlots(options: SubjectOption[], blockedSlots: BlockedSlot[]): SubjectOption[] {
+  if (blockedSlots.length === 0) return options;
+  return options.filter((opt) =>
+    opt.requiredBlocks.every((b) => !blockedSlots.some((slot) => blocksOverlap(b, slot)))
+  );
 }
 
 /**
@@ -267,6 +286,30 @@ export function generatePlans(subjects: Subject[], criteria: Criteria): Generati
         continue;
       }
     }
+
+    const afterAllowedDays = applyAllowedDays(finalOptions, criteria.allowedDays);
+    if (afterAllowedDays.length === 0) {
+      blockedSubjects.push({
+        subjectId: subject.id,
+        subjectName: subject.name,
+        reason: `no tiene ninguna combinación de teórico/comisión que caiga dentro de los días permitidos (${criteria.allowedDays?.join(", ")}).`,
+      });
+      continue;
+    }
+    finalOptions = afterAllowedDays;
+
+    const afterBlockedSlots = applyBlockedSlots(finalOptions, criteria.blockedSlots);
+    if (afterBlockedSlots.length === 0) {
+      blockedSubjects.push({
+        subjectId: subject.id,
+        subjectName: subject.name,
+        reason:
+          "todas sus combinaciones posibles se superponen con tus horarios bloqueados (actividades personales o materias anuales).",
+      });
+      continue;
+    }
+    finalOptions = afterBlockedSlots;
+
     subjectsOptions.push({ subjectId: subject.id, subjectName: subject.name, options: finalOptions });
   }
 
@@ -322,4 +365,6 @@ export const DEFAULT_CRITERIA: Criteria = {
   maxGapMinutes: 20,
   groupPracticosFirst: true,
   fixedSubject: null,
+  allowedDays: null,
+  blockedSlots: [],
 };

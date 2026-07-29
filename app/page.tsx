@@ -98,7 +98,7 @@ export default function Home() {
           <section className="mt-8">
             <h2 className="text-lg font-semibold">3. Resultados</h2>
             <div className="mt-3">
-              <PlanList result={result} />
+              <PlanList result={result} blockedSlots={criteria.blockedSlots} />
             </div>
           </section>
         )}

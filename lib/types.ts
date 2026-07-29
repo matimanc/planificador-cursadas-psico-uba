@@ -56,6 +56,14 @@ export interface FixedSubjectCriteria {
   day: string;
 }
 
+export interface BlockedSlot {
+  id: string;
+  label: string;
+  day: string;
+  start: string;
+  end: string;
+}
+
 export interface Criteria {
   idealDays: number;
   minStartTime: string;
@@ -63,6 +71,14 @@ export interface Criteria {
   maxGapMinutes: number;
   groupPracticosFirst: boolean;
   fixedSubject: FixedSubjectCriteria | null;
+  /** Días hábiles en los que se puede cursar. `null` = sin restricción. */
+  allowedDays: string[] | null;
+  /**
+   * Horarios ocupados por otras actividades (personales o materias anuales
+   * ya fijas, como Psicopatología o Psicoanálisis en Psico UBA). Se tratan
+   * como conflicto duro: ninguna combinación puede superponerse con ellos.
+   */
+  blockedSlots: BlockedSlot[];
 }
 
 export interface PlanBlock extends ScheduleBlock {
@@ -93,6 +109,9 @@ export const DAY_ORDER = [
   "sabado",
   "domingo",
 ];
+
+/** Días hábiles típicos de cursada (sin domingo), usados para selectores de UI. */
+export const WEEKDAYS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
 
 export function normalizeDay(day: string): string {
   return day

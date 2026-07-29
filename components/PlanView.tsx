@@ -1,6 +1,6 @@
 "use client";
 
-import { Plan } from "@/lib/types";
+import { BlockedSlot, Plan } from "@/lib/types";
 
 const DAYS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
 const DAY_LABELS: Record<string, string> = {
@@ -36,9 +36,19 @@ function toMinutes(t: string): number {
   return h * 60 + m;
 }
 
-export function PlanView({ plan, planElementId }: { plan: Plan; planElementId?: string }) {
+export function PlanView({
+  plan,
+  blockedSlots = [],
+  planElementId,
+}: {
+  plan: Plan;
+  blockedSlots?: BlockedSlot[];
+  planElementId?: string;
+}) {
   const subjectIds = [...new Set(plan.blocks.map((b) => b.subjectId))];
-  const activeDays = DAYS.filter((d) => plan.blocks.some((b) => b.day === d));
+  const activeDays = DAYS.filter(
+    (d) => plan.blocks.some((b) => b.day === d) || blockedSlots.some((b) => b.day === d)
+  );
   const daysToShow = activeDays.length > 0 ? activeDays : DAYS;
 
   return (
@@ -85,6 +95,33 @@ export function PlanView({ plan, planElementId }: { plan: Plan; planElementId?: 
                 />
               );
             })}
+            {blockedSlots
+              .filter((b) => b.day === day)
+              .map((b) => {
+                const top =
+                  ((toMinutes(b.start) - GRID_START_MIN) / (GRID_END_MIN - GRID_START_MIN)) *
+                  GRID_HEIGHT_PX;
+                const height =
+                  ((toMinutes(b.end) - toMinutes(b.start)) / (GRID_END_MIN - GRID_START_MIN)) *
+                  GRID_HEIGHT_PX;
+                return (
+                  <div
+                    key={b.id}
+                    className="absolute left-0.5 right-0.5 z-0 overflow-hidden rounded border border-dashed border-neutral-400 px-1 py-0.5 text-[10px] leading-tight text-neutral-600 dark:border-neutral-500 dark:text-neutral-300"
+                    style={{
+                      top,
+                      height: Math.max(height, 22),
+                      backgroundImage:
+                        "repeating-linear-gradient(45deg, rgba(115,115,115,0.18), rgba(115,115,115,0.18) 4px, transparent 4px, transparent 9px)",
+                    }}
+                  >
+                    <p className="truncate font-semibold">{b.label}</p>
+                    <p className="truncate">
+                      {b.start}-{b.end}
+                    </p>
+                  </div>
+                );
+              })}
             {plan.blocks
               .filter((b) => b.day === day)
               .map((b) => {
@@ -98,7 +135,7 @@ export function PlanView({ plan, planElementId }: { plan: Plan; planElementId?: 
                 return (
                   <div
                     key={b.id}
-                    className={`absolute left-0.5 right-0.5 overflow-hidden rounded border px-1 py-0.5 text-[10px] leading-tight ${colorFor(
+                    className={`absolute left-0.5 right-0.5 z-10 overflow-hidden rounded border px-1 py-0.5 text-[10px] leading-tight ${colorFor(
                       b.subjectId,
                       subjectIds
                     )} ${isLow ? "border-dashed opacity-80" : ""}`}

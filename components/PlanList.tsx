@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { GenerationResult } from "@/lib/types";
+import { BlockedSlot, GenerationResult } from "@/lib/types";
 import { PlanView } from "./PlanView";
 import { PlanFlatTable } from "./PlanFlatTable";
 
-export function PlanList({ result }: { result: GenerationResult }) {
+export function PlanList({
+  result,
+  blockedSlots = [],
+}: {
+  result: GenerationResult;
+  blockedSlots?: BlockedSlot[];
+}) {
   const [activeId, setActiveId] = useState(result.plans[0]?.id);
   const activePlan = result.plans.find((p) => p.id === activeId) ?? result.plans[0];
 
@@ -65,7 +71,7 @@ export function PlanList({ result }: { result: GenerationResult }) {
                   ))}
                 </div>
               )}
-              <PlanView plan={activePlan} planElementId="active-plan-view" />
+              <PlanView plan={activePlan} blockedSlots={blockedSlots} planElementId="active-plan-view" />
               <PlanFlatTable plan={activePlan} />
             </div>
           )}

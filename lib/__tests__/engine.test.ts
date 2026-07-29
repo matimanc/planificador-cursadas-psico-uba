@@ -138,6 +138,45 @@ describe("generatePlans", () => {
     expect(result.blockedSubjects[0].reason).toMatch(/día fijado/);
   });
 
+  it("treats allowedDays as a hard filter, blocking a subject with no options on those days", () => {
+    const subject = makeFixedSubject(); // only ever falls on lunes
+    const result = generatePlans([subject], { ...DEFAULT_CRITERIA, allowedDays: ["martes"] });
+    expect(result.plans).toHaveLength(0);
+    expect(result.blockedSubjects).toHaveLength(1);
+    expect(result.blockedSubjects[0].reason).toMatch(/días permitidos/);
+  });
+
+  it("generates plans normally when allowedDays includes the subject's only day", () => {
+    const subject = makeFixedSubject();
+    const result = generatePlans([subject], { ...DEFAULT_CRITERIA, allowedDays: ["lunes"] });
+    expect(result.blockedSubjects).toHaveLength(0);
+    expect(result.plans).toHaveLength(1);
+  });
+
+  it("excludes combinations overlapping a user-defined blocked slot", () => {
+    const subject = makeJuridicaSubject();
+    // Comisión #1 (oblig V) meets miércoles 18:00-19:30; block that exact slot.
+    const result = generatePlans([subject], {
+      ...DEFAULT_CRITERIA,
+      blockedSlots: [{ id: "b1", label: "Trabajo", day: "miercoles", start: "18:00", end: "19:30" }],
+    });
+    const usesBlockedComision = result.plans
+      .flatMap((p) => p.blocks)
+      .some((b) => b.kind === "practico" && b.identifier === "1");
+    expect(usesBlockedComision).toBe(false);
+  });
+
+  it("reports a subject as blocked when every option overlaps the user's blocked slots", () => {
+    const subject = makeFixedSubject(); // teórico lunes 08:00-09:30, comisión lunes 10:00-11:30
+    const result = generatePlans([subject], {
+      ...DEFAULT_CRITERIA,
+      blockedSlots: [{ id: "b1", label: "Gimnasio", day: "lunes", start: "08:00", end: "09:30" }],
+    });
+    expect(result.plans).toHaveLength(0);
+    expect(result.blockedSubjects).toHaveLength(1);
+    expect(result.blockedSubjects[0].reason).toMatch(/horarios bloqueados/);
+  });
+
   it("ranks plans preferring fewer distinct days when idealDays is small", () => {
     const subject = makeJuridicaSubject();
     const second = makeFixedSubject();
