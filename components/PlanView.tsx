@@ -1,6 +1,8 @@
 "use client";
 
-import { BlockedSlot, Plan } from "@/lib/types";
+import { BlockedSlot, Plan, PlanBlock } from "@/lib/types";
+import { formatIdentifiers, formatProfessors } from "@/lib/format";
+import { layoutDayItems } from "@/lib/calendarLayout";
 
 const DAYS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
 const DAY_LABELS: Record<string, string> = {
@@ -35,6 +37,10 @@ function toMinutes(t: string): number {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
 }
+
+type CalendarEvent =
+  | { id: string; type: "plan"; startMin: number; endMin: number; block: PlanBlock }
+  | { id: string; type: "blocked"; startMin: number; endMin: number; slot: BlockedSlot };
 
 export function PlanView({
   plan,
@@ -79,74 +85,101 @@ export function PlanView({
           })}
         </div>
 
-        {daysToShow.map((day) => (
-          <div
-            key={day}
-            className="relative border-l border-neutral-200 dark:border-neutral-700"
-            style={{ height: GRID_HEIGHT_PX }}
-          >
-            {Array.from({ length: (GRID_END_MIN - GRID_START_MIN) / 60 + 1 }, (_, i) => {
-              const top = (i * 60 / (GRID_END_MIN - GRID_START_MIN)) * GRID_HEIGHT_PX;
-              return (
-                <div
-                  key={i}
-                  className="absolute w-full border-t border-neutral-100 dark:border-neutral-800"
-                  style={{ top }}
-                />
-              );
-            })}
-            {blockedSlots
+        {daysToShow.map((day) => {
+          const dayEvents: CalendarEvent[] = [
+            ...blockedSlots
               .filter((b) => b.day === day)
-              .map((b) => {
-                const top =
-                  ((toMinutes(b.start) - GRID_START_MIN) / (GRID_END_MIN - GRID_START_MIN)) *
-                  GRID_HEIGHT_PX;
-                const height =
-                  ((toMinutes(b.end) - toMinutes(b.start)) / (GRID_END_MIN - GRID_START_MIN)) *
-                  GRID_HEIGHT_PX;
+              .map((b): CalendarEvent => ({
+                id: b.id,
+                type: "blocked",
+                startMin: toMinutes(b.start),
+                endMin: toMinutes(b.end),
+                slot: b,
+              })),
+            ...plan.blocks
+              .filter((b) => b.day === day)
+              .map((b): CalendarEvent => ({
+                id: b.id,
+                type: "plan",
+                startMin: toMinutes(b.start),
+                endMin: toMinutes(b.end),
+                block: b,
+              })),
+          ];
+          const laidOut = layoutDayItems(dayEvents);
+
+          return (
+            <div
+              key={day}
+              className="relative border-l border-neutral-200 dark:border-neutral-700"
+              style={{ height: GRID_HEIGHT_PX }}
+            >
+              {Array.from({ length: (GRID_END_MIN - GRID_START_MIN) / 60 + 1 }, (_, i) => {
+                const top = (i * 60 / (GRID_END_MIN - GRID_START_MIN)) * GRID_HEIGHT_PX;
                 return (
                   <div
-                    key={b.id}
-                    className="absolute left-0.5 right-0.5 z-0 overflow-hidden rounded border border-dashed border-neutral-400 px-1 py-0.5 text-[10px] leading-tight text-neutral-600 dark:border-neutral-500 dark:text-neutral-300"
-                    style={{
-                      top,
-                      height: Math.max(height, 22),
-                      backgroundImage:
-                        "repeating-linear-gradient(45deg, rgba(115,115,115,0.18), rgba(115,115,115,0.18) 4px, transparent 4px, transparent 9px)",
-                    }}
-                  >
-                    <p className="truncate font-semibold">{b.label}</p>
-                    <p className="truncate">
-                      {b.start}-{b.end}
-                    </p>
-                  </div>
+                    key={i}
+                    className="absolute w-full border-t border-neutral-100 dark:border-neutral-800"
+                    style={{ top }}
+                  />
                 );
               })}
-            {plan.blocks
-              .filter((b) => b.day === day)
-              .map((b) => {
+              {laidOut.map(({ item: ev, col, totalCols }) => {
                 const top =
-                  ((toMinutes(b.start) - GRID_START_MIN) / (GRID_END_MIN - GRID_START_MIN)) *
-                  GRID_HEIGHT_PX;
+                  ((ev.startMin - GRID_START_MIN) / (GRID_END_MIN - GRID_START_MIN)) * GRID_HEIGHT_PX;
                 const height =
-                  ((toMinutes(b.end) - toMinutes(b.start)) / (GRID_END_MIN - GRID_START_MIN)) *
-                  GRID_HEIGHT_PX;
+                  ((ev.endMin - ev.startMin) / (GRID_END_MIN - GRID_START_MIN)) * GRID_HEIGHT_PX;
+                const widthPct = 100 / totalCols;
+                const leftPct = widthPct * col;
+                const positionStyle = {
+                  top,
+                  height: Math.max(height, 22),
+                  left: `calc(${leftPct}% + 2px)`,
+                  width: `calc(${widthPct}% - 4px)`,
+                } as const;
+
+                if (ev.type === "blocked") {
+                  const b = ev.slot;
+                  return (
+                    <div
+                      key={ev.id}
+                      className="absolute z-0 overflow-hidden rounded border border-dashed border-neutral-400 px-1 py-0.5 text-[10px] leading-tight text-neutral-600 dark:border-neutral-500 dark:text-neutral-300"
+                      style={{
+                        ...positionStyle,
+                        backgroundImage:
+                          "repeating-linear-gradient(45deg, rgba(115,115,115,0.18), rgba(115,115,115,0.18) 4px, transparent 4px, transparent 9px)",
+                      }}
+                      title={`${b.label} · ${b.start}-${b.end}`}
+                    >
+                      <p className="truncate font-semibold">{b.label}</p>
+                      <p className="truncate">
+                        {b.start}-{b.end}
+                      </p>
+                    </div>
+                  );
+                }
+
+                const b = ev.block;
                 const isLow = b.priority === "low";
+                const identifiers = formatIdentifiers(b.equivalentOptions);
+                const professors = formatProfessors(b.equivalentOptions);
                 return (
                   <div
-                    key={b.id}
-                    className={`absolute left-0.5 right-0.5 z-10 overflow-hidden rounded border px-1 py-0.5 text-[10px] leading-tight ${colorFor(
+                    key={ev.id}
+                    className={`absolute z-10 overflow-hidden rounded border px-1 py-0.5 text-[10px] leading-tight ${colorFor(
                       b.subjectId,
                       subjectIds
                     )} ${isLow ? "border-dashed opacity-80" : ""}`}
-                    style={{ top, height: Math.max(height, 22) }}
+                    style={positionStyle}
+                    title={`${b.subjectName} · ${b.kind === "teorico" ? "Teórico" : "Práctico"} ${identifiers} · ${professors} · ${b.start}-${b.end}`}
                   >
                     <p className="truncate font-semibold">
                       {b.subjectName} {isLow && "· a evaluar"}
                     </p>
                     <p className="truncate">
-                      {b.kind === "teorico" ? "Teórico" : "Práctico"} {b.identifier} · {b.professor}
+                      {b.kind === "teorico" ? "Teórico" : "Práctico"} {identifiers}
                     </p>
+                    <p className="truncate">{professors}</p>
                     <p className="truncate">
                       {b.start}-{b.end}
                     </p>
@@ -158,8 +191,9 @@ export function PlanView({
                   </div>
                 );
               })}
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -177,6 +177,43 @@ describe("generatePlans", () => {
     expect(result.blockedSubjects[0].reason).toMatch(/horarios bloqueados/);
   });
 
+  it("groups comisiones that share the exact same day/time/teórico as equivalent options", () => {
+    const raw = `Teóricos     Dia     Inicio     Fin     Tipo     Profesor     Vac.     Oblig.     Aula     Observ.
+ I    lunes     08:00     09:30     Teo    Docente Uno               A-1
+Comisiones     Dia     Inicio     Fin     Tipo     Profesor     Vac.     Oblig.     Aula     Observ.
+ 7    lunes     10:00     11:30     Prac    Docente Dos     30     I     A-2
+ 15    lunes     10:00     11:30     Prac    Docente Tres     30     I     A-3
+ 22    lunes     10:00     11:30     Prac    Docente Cuatro     30     I     A-4`;
+    const parsed = parseCatedraText(raw, {
+      subjectId: "grupal",
+      subjectName: "Materia Grupal",
+      catedraId: "unica",
+      catedraLabel: "Única",
+    });
+    const subject: Subject = {
+      id: "grupal",
+      name: "Materia Grupal",
+      hasMultipleCatedras: false,
+      teoricoPriorities: {},
+      catedras: [{ id: "unica", label: "Única", rawText: raw, parsed }],
+    };
+
+    const result = generatePlans([subject], DEFAULT_CRITERIA);
+    expect(result.plans).toHaveLength(1);
+    const practico = result.plans[0].blocks.find((b) => b.kind === "practico")!;
+    const ids = practico.equivalentOptions.map((o) => o.identifier).sort();
+    expect(ids).toEqual(["15", "22", "7"]);
+  });
+
+  it("gives every plan block a non-empty equivalentOptions list even without grouping", () => {
+    const subject = makeFixedSubject();
+    const result = generatePlans([subject], DEFAULT_CRITERIA);
+    for (const b of result.plans[0].blocks) {
+      expect(b.equivalentOptions.length).toBeGreaterThanOrEqual(1);
+      expect(b.equivalentOptions[0].identifier).toBe(b.identifier);
+    }
+  });
+
   it("ranks plans preferring fewer distinct days when idealDays is small", () => {
     const subject = makeJuridicaSubject();
     const second = makeFixedSubject();

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plan, DAY_ORDER } from "@/lib/types";
 import { planToTsv } from "@/lib/export";
+import { formatIdentifiers, formatProfessors } from "@/lib/format";
 
 export function PlanFlatTable({ plan }: { plan: Plan }) {
   const [copied, setCopied] = useState(false);
@@ -50,8 +51,8 @@ export function PlanFlatTable({ plan }: { plan: Plan }) {
                 </td>
                 <td className="px-2 py-1">{b.subjectName}</td>
                 <td className="px-2 py-1">{b.kind === "teorico" ? "Teórico" : "Práctico"}</td>
-                <td className="px-2 py-1">{b.identifier}</td>
-                <td className="px-2 py-1">{b.professor}</td>
+                <td className="px-2 py-1">{formatIdentifiers(b.equivalentOptions)}</td>
+                <td className="px-2 py-1">{formatProfessors(b.equivalentOptions)}</td>
                 <td className="px-2 py-1">
                   {b.priority === "low" ? (
                     <span className="text-amber-600 dark:text-amber-400">A evaluar</span>

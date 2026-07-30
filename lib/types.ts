@@ -83,6 +83,13 @@ export interface Criteria {
 
 export interface PlanBlock extends ScheduleBlock {
   isOverlapWarning: boolean;
+  /**
+   * Other blocks (comisiones, normalmente) que caen exactamente en el mismo
+   * día y horario y son igual de válidas para este plan — el usuario puede
+   * elegir cualquiera de ellas sin que cambie el resto de la cursada.
+   * Siempre incluye al menos el bloque mismo.
+   */
+  equivalentOptions: ScheduleBlock[];
 }
 
 export interface Plan {

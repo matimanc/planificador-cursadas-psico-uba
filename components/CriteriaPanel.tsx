@@ -27,12 +27,12 @@ export function CriteriaPanel({ criteria, onChange, subjects }: Props) {
     end: "20:30",
   });
 
-  const selectedDays = criteria.allowedDays ?? WEEKDAYS;
+  const selectedDays = criteria.allowedDays ?? [];
 
   function toggleDay(day: string) {
-    const base = criteria.allowedDays ?? WEEKDAYS;
+    const base = criteria.allowedDays ?? [];
     const next = base.includes(day) ? base.filter((d) => d !== day) : [...base, day];
-    onChange({ ...criteria, allowedDays: next.length === WEEKDAYS.length ? null : next });
+    onChange({ ...criteria, allowedDays: next.length === 0 ? null : next });
   }
 
   function addBlockedSlot() {
@@ -174,8 +174,9 @@ export function CriteriaPanel({ criteria, onChange, subjects }: Props) {
           ))}
         </div>
         <p className="mt-1 text-neutral-500 dark:text-neutral-400">
-          Desmarcá los días en los que no querés tener clases. Es una restricción dura: ningún plan
-          va a proponer horarios fuera de los días seleccionados.
+          Marcá los días en los que querés tener clases. Si no marcás ninguno, no hay restricción
+          (se consideran todos). Es una restricción dura: ningún plan va a proponer horarios fuera
+          de los días marcados.
         </p>
       </div>
 

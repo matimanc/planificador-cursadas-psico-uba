@@ -15,6 +15,8 @@ interface SubjectOption {
   catedraId: string;
   requiredBlocks: ScheduleBlock[];
   advisoryBlocks: ScheduleBlock[];
+  /** Comisiones intercambiables (mismo día/horario/teórico vinculado) representadas por requiredBlocks[práctico]. */
+  comisionAlternatives: ScheduleBlock[];
 }
 
 function timeToMinutes(t: string): number {
@@ -74,26 +76,51 @@ function buildSubjectOptions(subject: Subject): {
     const priorityOf = (identifier: string): TeoricoPriority =>
       subject.teoricoPriorities[identifier] ?? "fundamental";
 
-    for (const comision of parsed.comisiones) {
+    interface ComisionCandidate {
+      comision: ScheduleBlock;
+      matchedTeorico?: ScheduleBlock;
+      isFundamental: boolean;
+    }
+
+    const candidates: ComisionCandidate[] = parsed.comisiones.map((comision) => {
       const matchedTeorico = teoricosById.get(comision.oblig) ?? lonelyTeorico ?? undefined;
-
       const isFundamental = !!matchedTeorico && priorityOf(matchedTeorico.identifier) === "fundamental";
+      return { comision, matchedTeorico, isFundamental };
+    });
 
-      if (isFundamental && matchedTeorico) {
+    // Group comisiones that occupy the exact same day/time and are linked to
+    // the same teórico (or none): they're interchangeable choices for the
+    // same time slot, so they become a single option instead of separate
+    // near-duplicate plans.
+    const groups = new Map<string, ComisionCandidate[]>();
+    for (const c of candidates) {
+      const teoricoKey = c.matchedTeorico ? c.matchedTeorico.identifier : "none";
+      const key = `${c.comision.day}|${c.comision.start}|${c.comision.end}|${teoricoKey}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(c);
+    }
+
+    for (const group of groups.values()) {
+      const [first] = group;
+      const comisionAlternatives = group.map((g) => g.comision);
+
+      if (first.isFundamental && first.matchedTeorico) {
         options.push({
           subjectId: subject.id,
           subjectName: subject.name,
           catedraId: catedra.id,
-          requiredBlocks: [matchedTeorico, comision],
+          requiredBlocks: [first.matchedTeorico, first.comision],
           advisoryBlocks: [],
+          comisionAlternatives,
         });
       } else {
         options.push({
           subjectId: subject.id,
           subjectName: subject.name,
           catedraId: catedra.id,
-          requiredBlocks: [comision],
-          advisoryBlocks: matchedTeorico ? [{ ...matchedTeorico, priority: "low" }] : [],
+          requiredBlocks: [first.comision],
+          advisoryBlocks: first.matchedTeorico ? [{ ...first.matchedTeorico, priority: "low" }] : [],
+          comisionAlternatives,
         });
       }
     }
@@ -233,11 +260,12 @@ function toPlanBlocks(combination: Combination): PlanBlock[] {
   const blocks: PlanBlock[] = [];
   for (const opt of combination.chosen) {
     for (const b of opt.requiredBlocks) {
-      blocks.push({ ...b, isOverlapWarning: false });
+      const equivalentOptions = b.kind === "practico" ? opt.comisionAlternatives : [b];
+      blocks.push({ ...b, isOverlapWarning: false, equivalentOptions });
     }
     for (const adv of opt.advisoryBlocks) {
       const isOverlapWarning = allRequired.some((rb) => blocksOverlap(rb, adv));
-      blocks.push({ ...adv, isOverlapWarning });
+      blocks.push({ ...adv, isOverlapWarning, equivalentOptions: [adv] });
     }
   }
   return blocks;

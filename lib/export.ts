@@ -1,4 +1,5 @@
 import { DAY_ORDER, Plan } from "./types";
+import { formatIdentifiers, formatProfessors } from "./format";
 
 const HEADERS = ["Día", "Horario", "Materia", "Tipo", "Comisión", "Docente", "Estado"];
 
@@ -17,8 +18,8 @@ export function planToTsv(plan: Plan): string {
         `${b.start}-${b.end}`,
         b.subjectName,
         b.kind === "teorico" ? "Teórico" : "Práctico",
-        b.identifier,
-        b.professor,
+        formatIdentifiers(b.equivalentOptions),
+        formatProfessors(b.equivalentOptions),
         b.priority === "low" ? "A evaluar" : "Confirmado",
       ].join("\t")
     );
