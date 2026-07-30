@@ -259,13 +259,20 @@ function toPlanBlocks(combination: Combination): PlanBlock[] {
   const allRequired = combination.chosen.flatMap((o) => o.requiredBlocks);
   const blocks: PlanBlock[] = [];
   for (const opt of combination.chosen) {
+    // The subject's name may have been edited after these blocks were parsed;
+    // always display the current name instead of whatever was baked in then.
+    const withCurrentName = (b: ScheduleBlock): ScheduleBlock => ({ ...b, subjectName: opt.subjectName });
+
     for (const b of opt.requiredBlocks) {
-      const equivalentOptions = b.kind === "practico" ? opt.comisionAlternatives : [b];
-      blocks.push({ ...b, isOverlapWarning: false, equivalentOptions });
+      const equivalentOptions = (b.kind === "practico" ? opt.comisionAlternatives : [b]).map(
+        withCurrentName
+      );
+      blocks.push({ ...withCurrentName(b), isOverlapWarning: false, equivalentOptions });
     }
     for (const adv of opt.advisoryBlocks) {
       const isOverlapWarning = allRequired.some((rb) => blocksOverlap(rb, adv));
-      blocks.push({ ...adv, isOverlapWarning, equivalentOptions: [adv] });
+      const namedAdv = withCurrentName(adv);
+      blocks.push({ ...namedAdv, isOverlapWarning, equivalentOptions: [namedAdv] });
     }
   }
   return blocks;

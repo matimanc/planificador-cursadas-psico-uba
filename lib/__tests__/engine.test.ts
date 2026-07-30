@@ -97,6 +97,21 @@ describe("generatePlans", () => {
     }
   });
 
+  it("uses the subject's current name even if it was renamed after the text was parsed", () => {
+    const subject = makeFixedSubject();
+    subject.catedras[0].parsed!.teoricos[0].subjectName = "Nombre Viejo";
+    subject.catedras[0].parsed!.comisiones[0].subjectName = "Nombre Viejo";
+    subject.name = "Nombre Nuevo";
+
+    const result = generatePlans([subject], DEFAULT_CRITERIA);
+    for (const b of result.plans[0].blocks) {
+      expect(b.subjectName).toBe("Nombre Nuevo");
+      for (const alt of b.equivalentOptions) {
+        expect(alt.subjectName).toBe("Nombre Nuevo");
+      }
+    }
+  });
+
   it("handles a subject with a single non-negotiable teórico/comisión pair", () => {
     const subject = makeFixedSubject();
     const result = generatePlans([subject], DEFAULT_CRITERIA);
