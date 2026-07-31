@@ -35,7 +35,7 @@ export function PlanFlatTable({ plan }: { plan: Plan }) {
         <table className="w-full text-xs">
           <thead className="bg-neutral-100 dark:bg-neutral-800">
             <tr>
-              {["Día", "Horario", "Materia", "Tipo", "Comisión", "Docente", "Estado"].map((h) => (
+              {["Día", "Horario", "Materia", "Cátedra", "Tipo", "Comisión", "Docente", "Estado"].map((h) => (
                 <th key={h} className="px-2 py-1 text-left font-medium">
                   {h}
                 </th>
@@ -50,6 +50,7 @@ export function PlanFlatTable({ plan }: { plan: Plan }) {
                   {b.start}-{b.end}
                 </td>
                 <td className="px-2 py-1">{b.subjectName}</td>
+                <td className="px-2 py-1">{b.catedraLabel}</td>
                 <td className="px-2 py-1">{b.kind === "teorico" ? "Teórico" : "Práctico"}</td>
                 <td className="px-2 py-1">{formatIdentifiers(b.equivalentOptions)}</td>
                 <td className="px-2 py-1">{formatProfessors(b.equivalentOptions)}</td>

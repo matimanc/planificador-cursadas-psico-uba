@@ -59,16 +59,29 @@ function applyBlockedSlots(options: SubjectOption[], blockedSlots: BlockedSlot[]
 function buildSubjectOptions(subject: Subject): {
   options: SubjectOption[];
   blockedReason: string | null;
+  capacityWarnings: string[];
 } {
   const options: SubjectOption[] = [];
+  const capacityWarnings: string[] = [];
   let anyTeoricos = false;
   let anyComisiones = false;
+  let anyComisionesWithCapacity = false;
+  const displayName = subject.name || "Materia sin nombre";
 
   for (const catedra of subject.catedras) {
     const parsed = catedra.parsed;
     if (!parsed) continue;
     if (parsed.teoricos.length > 0) anyTeoricos = true;
     if (parsed.comisiones.length > 0) anyComisiones = true;
+
+    const availableComisiones = parsed.comisiones.filter((c) => c.vacancies !== "0");
+    const zeroVacancyComisiones = parsed.comisiones.filter((c) => c.vacancies === "0");
+    if (availableComisiones.length > 0) anyComisionesWithCapacity = true;
+    for (const c of zeroVacancyComisiones) {
+      capacityWarnings.push(
+        `La comisión ${c.identifier} de "${displayName}" tiene 0 cupos, así que no se consideró para armar el plan.`
+      );
+    }
 
     const teoricosById = new Map(parsed.teoricos.map((t) => [t.identifier, t]));
     const lonelyTeorico = parsed.teoricos.length === 1 ? parsed.teoricos[0] : null;
@@ -82,7 +95,7 @@ function buildSubjectOptions(subject: Subject): {
       isFundamental: boolean;
     }
 
-    const candidates: ComisionCandidate[] = parsed.comisiones.map((comision) => {
+    const candidates: ComisionCandidate[] = availableComisiones.map((comision) => {
       const matchedTeorico = teoricosById.get(comision.oblig) ?? lonelyTeorico ?? undefined;
       const isFundamental = !!matchedTeorico && priorityOf(matchedTeorico.identifier) === "fundamental";
       return { comision, matchedTeorico, isFundamental };
@@ -127,23 +140,31 @@ function buildSubjectOptions(subject: Subject): {
   }
 
   if (!anyTeoricos && !anyComisiones) {
-    return { options: [], blockedReason: "no se cargaron horarios (materia vacía)." };
+    return { options: [], blockedReason: "no se cargaron horarios (materia vacía).", capacityWarnings };
   }
   if (anyTeoricos && !anyComisiones) {
-    return { options: [], blockedReason: "faltan las comisiones de práctico." };
+    return { options: [], blockedReason: "faltan las comisiones de práctico.", capacityWarnings };
   }
   if (!anyTeoricos && anyComisiones) {
-    return { options: [], blockedReason: "faltan los teóricos." };
+    return { options: [], blockedReason: "faltan los teóricos.", capacityWarnings };
+  }
+  if (anyComisiones && !anyComisionesWithCapacity) {
+    return {
+      options: [],
+      blockedReason: "todas sus comisiones tienen 0 cupos disponibles.",
+      capacityWarnings,
+    };
   }
   if (options.length === 0) {
     return {
       options: [],
       blockedReason:
         "ninguna comisión pudo vincularse a un teórico fundamental vía el campo Oblig.",
+      capacityWarnings,
     };
   }
 
-  return { options, blockedReason: null };
+  return { options, blockedReason: null, capacityWarnings };
 }
 
 function applyFixedSubject(
@@ -300,11 +321,14 @@ function buildRelaxationNote(
 
 export function generatePlans(subjects: Subject[], criteria: Criteria): GenerationResult {
   const blockedSubjects: GenerationResult["blockedSubjects"] = [];
+  const capacityWarnings: string[] = [];
   const subjectsOptions: { subjectId: string; subjectName: string; options: SubjectOption[] }[] =
     [];
 
   for (const subject of subjects) {
-    const { options, blockedReason } = buildSubjectOptions(subject);
+    const { options, blockedReason, capacityWarnings: subjectCapacityWarnings } =
+      buildSubjectOptions(subject);
+    capacityWarnings.push(...subjectCapacityWarnings);
     if (blockedReason) {
       blockedSubjects.push({ subjectId: subject.id, subjectName: subject.name, reason: blockedReason });
       continue;
@@ -349,7 +373,7 @@ export function generatePlans(subjects: Subject[], criteria: Criteria): Generati
   }
 
   if (subjectsOptions.length === 0) {
-    return { plans: [], blockedSubjects, relaxationNotes: [] };
+    return { plans: [], blockedSubjects, relaxationNotes: [], capacityWarnings };
   }
 
   const combinations = generateCombinations(
@@ -363,6 +387,7 @@ export function generatePlans(subjects: Subject[], criteria: Criteria): Generati
       relaxationNotes: [
         "No se encontró ninguna combinación sin superposiciones entre las materias cargadas. Revisá los horarios o relajá los criterios.",
       ],
+      capacityWarnings,
     };
   }
 
@@ -390,7 +415,7 @@ export function generatePlans(subjects: Subject[], criteria: Criteria): Generati
           }`,
   }));
 
-  return { plans, blockedSubjects, relaxationNotes };
+  return { plans, blockedSubjects, relaxationNotes, capacityWarnings };
 }
 
 export const DEFAULT_CRITERIA: Criteria = {

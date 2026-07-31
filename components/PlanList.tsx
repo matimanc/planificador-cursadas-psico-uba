@@ -30,6 +30,17 @@ export function PlanList({
         </div>
       )}
 
+      {result.capacityWarnings.length > 0 && (
+        <div className="rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+          <p className="font-semibold">Comisiones sin cupo excluidas:</p>
+          <ul className="mt-1 list-disc pl-4">
+            {result.capacityWarnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {result.relaxationNotes.length > 0 && (
         <div className="rounded border border-blue-300 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200">
           {result.relaxationNotes.map((n, i) => (

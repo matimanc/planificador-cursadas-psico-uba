@@ -229,6 +229,70 @@ Comisiones     Dia     Inicio     Fin     Tipo     Profesor     Vac.     Oblig. 
     }
   });
 
+  it("excludes a comisión with 0 vacancies and reports it as a capacity warning", () => {
+    const raw = `Teóricos     Dia     Inicio     Fin     Tipo     Profesor     Vac.     Oblig.     Aula     Observ.
+ I    lunes     08:00     09:30     Teo    Docente Uno               A-1
+Comisiones     Dia     Inicio     Fin     Tipo     Profesor     Vac.     Oblig.     Aula     Observ.
+ 1    lunes     10:00     11:30     Prac    Docente Lleno     0     I     A-2
+ 2    martes     10:00     11:30     Prac    Docente Con Cupo     20     I     A-3`;
+    const parsed = parseCatedraText(raw, {
+      subjectId: "cupos",
+      subjectName: "Con Cupos",
+      catedraId: "unica",
+      catedraLabel: "Única",
+    });
+    const subject: Subject = {
+      id: "cupos",
+      name: "Con Cupos",
+      hasMultipleCatedras: false,
+      teoricoPriorities: {},
+      catedras: [{ id: "unica", label: "Única", rawText: raw, parsed }],
+    };
+
+    const result = generatePlans([subject], DEFAULT_CRITERIA);
+    expect(result.capacityWarnings).toHaveLength(1);
+    expect(result.capacityWarnings[0]).toMatch(/comisión 1.*Con Cupos.*0 cupos/i);
+
+    const usedComision1 = result.plans
+      .flatMap((p) => p.blocks)
+      .some((b) => b.kind === "practico" && b.identifier === "1");
+    expect(usedComision1).toBe(false);
+  });
+
+  it("blocks a subject entirely when all its comisiones have 0 vacancies", () => {
+    const raw = `Teóricos     Dia     Inicio     Fin     Tipo     Profesor     Vac.     Oblig.     Aula     Observ.
+ I    lunes     08:00     09:30     Teo    Docente Uno               A-1
+Comisiones     Dia     Inicio     Fin     Tipo     Profesor     Vac.     Oblig.     Aula     Observ.
+ 1    lunes     10:00     11:30     Prac    Docente Lleno     0     I     A-2`;
+    const parsed = parseCatedraText(raw, {
+      subjectId: "sincupo",
+      subjectName: "Sin Cupo",
+      catedraId: "unica",
+      catedraLabel: "Única",
+    });
+    const subject: Subject = {
+      id: "sincupo",
+      name: "Sin Cupo",
+      hasMultipleCatedras: false,
+      teoricoPriorities: {},
+      catedras: [{ id: "unica", label: "Única", rawText: raw, parsed }],
+    };
+
+    const result = generatePlans([subject], DEFAULT_CRITERIA);
+    expect(result.plans).toHaveLength(0);
+    expect(result.blockedSubjects).toHaveLength(1);
+    expect(result.blockedSubjects[0].reason).toMatch(/0 cupos/);
+    expect(result.capacityWarnings).toHaveLength(1);
+  });
+
+  it("carries the cátedra label on every generated plan block", () => {
+    const subject = makeFixedSubject();
+    const result = generatePlans([subject], DEFAULT_CRITERIA);
+    for (const b of result.plans[0].blocks) {
+      expect(b.catedraLabel).toBe("Única");
+    }
+  });
+
   it("ranks plans preferring fewer distinct days when idealDays is small", () => {
     const subject = makeJuridicaSubject();
     const second = makeFixedSubject();

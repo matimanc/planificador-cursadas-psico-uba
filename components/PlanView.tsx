@@ -171,11 +171,14 @@ export function PlanView({
                       subjectIds
                     )} ${isLow ? "border-dashed opacity-80" : ""}`}
                     style={positionStyle}
-                    title={`${b.subjectName} · ${b.kind === "teorico" ? "Teórico" : "Práctico"} ${identifiers} · ${professors} · ${b.start}-${b.end}`}
+                    title={`${b.subjectName} (${b.catedraLabel}) · ${b.kind === "teorico" ? "Teórico" : "Práctico"} ${identifiers} · ${professors} · ${b.start}-${b.end}`}
                   >
                     <p className="truncate font-semibold">
                       {b.subjectName} {isLow && "· a evaluar"}
                     </p>
+                    {b.catedraLabel !== "Cátedra única" && (
+                      <p className="truncate italic opacity-80">{b.catedraLabel}</p>
+                    )}
                     <p className="truncate">
                       {b.kind === "teorico" ? "Teórico" : "Práctico"} {identifiers}
                     </p>

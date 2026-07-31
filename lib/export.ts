@@ -1,7 +1,7 @@
 import { DAY_ORDER, Plan } from "./types";
 import { formatIdentifiers, formatProfessors } from "./format";
 
-const HEADERS = ["Día", "Horario", "Materia", "Tipo", "Comisión", "Docente", "Estado"];
+const HEADERS = ["Día", "Horario", "Materia", "Cátedra", "Tipo", "Comisión", "Docente", "Estado"];
 
 export function planToTsv(plan: Plan): string {
   const rows = [...plan.blocks].sort((a, b) => {
@@ -17,6 +17,7 @@ export function planToTsv(plan: Plan): string {
         capitalize(b.day),
         `${b.start}-${b.end}`,
         b.subjectName,
+        b.catedraLabel,
         b.kind === "teorico" ? "Teórico" : "Práctico",
         formatIdentifiers(b.equivalentOptions),
         formatProfessors(b.equivalentOptions),

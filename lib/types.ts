@@ -105,6 +105,8 @@ export interface GenerationResult {
   plans: Plan[];
   blockedSubjects: { subjectId: string; subjectName: string; reason: string }[];
   relaxationNotes: string[];
+  /** Comisiones con 0 cupos que se excluyeron del armado, con el motivo. */
+  capacityWarnings: string[];
 }
 
 export const DAY_ORDER = [
